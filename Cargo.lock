@@ -510,6 +510,8 @@ dependencies = [
 name = "mald_manager"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "serde",
  "serenity",
 ]
 
