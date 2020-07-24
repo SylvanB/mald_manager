@@ -1,7 +1,7 @@
-use crate::lib::state::MaldCounter;
+use crate::lib::state::MaldData;
 use serenity::client::Context;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     env,
     fs::{File, OpenOptions},
     io::{Read, Write},
@@ -12,7 +12,9 @@ pub(crate) enum HistoryError {
     PathDoesntExist(String),
 }
 
-pub(crate) fn read_local_mald_history(location: String) -> Option<BTreeMap<String, u64>> {
+pub(crate) fn read_local_mald_history(
+    location: String,
+) -> Option<HashMap<u64, BTreeMap<String, u64>>> {
     let path = Path::new(&location);
     if !path.exists() {
         return None;
@@ -21,8 +23,8 @@ pub(crate) fn read_local_mald_history(location: String) -> Option<BTreeMap<Strin
     let mut contents = String::new();
     file.read_to_string(&mut contents).ok();
 
-    let malds: BTreeMap<String, u64> =
-        serde_json::from_str(&contents).unwrap_or(BTreeMap::default());
+    let malds =
+        serde_json::from_str(&contents).unwrap_or(HashMap::<u64, BTreeMap<String, u64>>::default());
 
     Some(malds)
 }
@@ -30,7 +32,7 @@ pub(crate) fn read_local_mald_history(location: String) -> Option<BTreeMap<Strin
 pub(crate) fn write_local_mald_history(ctx: &Context) -> Result<(), HistoryError> {
     let mald_location = env::var("MALD_LOCATION").expect("Expected a token in the environment");
     let data = ctx.data.read();
-    let malds = data.get::<MaldCounter>().unwrap();
+    let malds = data.get::<MaldData>().unwrap();
     let path = Path::new(&mald_location);
 
     if !path.exists() {
@@ -45,7 +47,7 @@ pub(crate) fn write_local_mald_history(ctx: &Context) -> Result<(), HistoryError
         .read(true)
         .open(path)
         .unwrap();
-        
+
     let malds = serde_json::to_string(&malds).unwrap();
 
     file.write(malds.as_bytes()).unwrap();
