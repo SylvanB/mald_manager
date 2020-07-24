@@ -3,27 +3,33 @@ use super::{
     state::{add_mald, get_mald_count, get_mald_history},
 };
 use chrono::Utc;
-use serenity::{client::Context, model::channel::Message};
-use std::env;
+use serenity::{
+    client::Context,
+    model::{channel::Message, prelude::User},
+    utils::MessageBuilder,
+};
 
 pub(crate) struct MaldManager;
 impl MaldManager {
-    pub fn new_mald(ctx: Context, msg: Message) {
+    pub fn new_mald(ctx: &Context, msg: &Message, user: &User) {
         let date = Utc::now().format("%d/%m/%Y").to_string();
         add_mald(&ctx, &date);
 
         let curr_malds = get_mald_count(&ctx, &date);
 
-        let output_str = match curr_malds {
-            1 => format!("Jon has malded only once!"),
-            _ => format!("Jon has malded `{}` times!", curr_malds),
+
+        let mut message = MessageBuilder::new();
+        
+        message.mention(user);
+
+        match curr_malds {
+            1 => message.push(format!(" has malded only once!")),
+            _ => message.push(format!(" has malded `{}` times!", curr_malds)),
         };
 
-        let mald_location = env::var("MALD_LOCATION").expect("Expected a token in the environment");
+        let _ = write_local_mald_history(&ctx);
 
-        let _ = write_local_mald_history(mald_location, &ctx);
-
-        if let Err(why) = msg.channel_id.say(&ctx.http, output_str) {
+        if let Err(why) = msg.channel_id.say(&ctx.http, message.build()) {
             println!("Error sending message: {:?}", why);
         }
     }

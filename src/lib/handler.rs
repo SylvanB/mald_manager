@@ -1,4 +1,4 @@
-use super::commands::MaldManager;
+use super::command::MaldManager;
 use crate::lib::{persistance::read_local_mald_history, state::*};
 use serenity::{
     client::{Context, EventHandler},
@@ -9,9 +9,11 @@ use std::env;
 pub(crate) struct MaldHandler;
 impl EventHandler for MaldHandler {
     fn message(&self, ctx: Context, msg: Message) {
-        if msg.content == "!mald" {
-            MaldManager::new_mald(ctx, msg);
-        } else if msg.content == "!mald_hist" {
+        if msg.content.contains("!mald") {
+            for user in &msg.mentions {
+                MaldManager::new_mald(&ctx, &msg, user);
+            }
+        } else if msg.content.contains("!mald_hist") {
             MaldManager::mald_history(ctx, msg);
         }
     }
