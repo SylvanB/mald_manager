@@ -467,6 +467,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "kankyo"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "325a11231fa70c1d1b562655db757cefb6022876d62f173831f35bd670ae0c40"
+
+[[package]]
 name = "kernel32-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -511,7 +517,9 @@ name = "mald_manager"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "kankyo",
  "serde",
+ "serde_json",
  "serenity",
 ]
 

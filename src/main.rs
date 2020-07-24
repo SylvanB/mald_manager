@@ -1,9 +1,10 @@
-use std::{ collections::BTreeMap, env };
+use std::{ collections::BTreeMap, env, path::Path, fs::{OpenOptions, File}, io::{self, Read} };
 use chrono::Utc;
 use serenity::{
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
+use io::Write;
 
 struct MaldCounter;
 impl TypeMapKey for MaldCounter {
@@ -36,6 +37,40 @@ fn get_mald_history(context: &Context) -> BTreeMap<String, u64>
     malds.to_owned()
 }
 
+fn read_local_mald_history(location: String) -> Option<BTreeMap<String, u64>> {
+    let path = Path::new(&location);
+    if !path.exists() {
+        return None;
+    }
+    let mut file = File::open(path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).ok();
+
+    let malds: BTreeMap<String, u64>  = serde_json::from_str(&contents).unwrap_or(BTreeMap::default());
+
+    Some(malds)
+}
+
+enum HistoryError {
+    PathDoesntExist(String),
+}
+
+fn write_local_mald_history(location: String, ctx: &Context) -> Result<(), HistoryError> {
+    let data = ctx.data.read();
+    let malds = data.get::<MaldCounter>().unwrap();
+
+    let path = Path::new(&location);
+    if !path.exists() {
+        return Err(HistoryError::PathDoesntExist(format!("Location `{}` doesn't exist.", location)));
+    }
+    let mut file = OpenOptions::new().write(true).read(true).open(path).unwrap();
+    let malds = serde_json::to_string(&malds).unwrap(); 
+
+    file.write(malds.as_bytes()).unwrap();
+
+    Ok(())
+}
+
 struct MaldManager;
 impl MaldManager {
     fn new_mald(ctx: Context, msg: Message) {
@@ -48,6 +83,11 @@ impl MaldManager {
             1 => format!("Jon has malded only once!"),
             _ => format!("Jon has malded `{}` times!", curr_malds)
         };
+
+        let mald_location = env::var("MALD_LOCATION")
+            .expect("Expected a token in the environment");
+
+        let _ = write_local_mald_history(mald_location, &ctx);
 
         if let Err(why) = msg.channel_id.say(&ctx.http, output_str) {
             println!("Error sending message: {:?}", why);
@@ -80,12 +120,18 @@ impl EventHandler for Handler {
     }
 
     fn ready(&self, ctx: Context, _ready: Ready) {
+        let mald_location = env::var("MALD_LOCATION")
+            .expect("Expected a token in the environment");
+
         let mut data = ctx.data.write();
-        data.insert::<MaldCounter>(BTreeMap::default());
+        data.insert::<MaldCounter>(read_local_mald_history(mald_location).unwrap());
     }
+    
 }
 
 fn main() {
+    kankyo::load(false).expect("Failed to load .env file");
+
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment");
 
