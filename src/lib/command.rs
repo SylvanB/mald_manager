@@ -13,7 +13,10 @@ pub(crate) struct MaldManager;
 impl MaldManager {
     pub fn new_mald(ctx: &Context, msg: &Message, user: &User) {
         let date = Utc::now().format("%d/%m/%Y").to_string();
-        add_mald(&ctx, &date, user.id);
+        match add_mald(&ctx, &date, user.id) {
+            Ok(_) => {},
+            Err(e) => panic!(e)
+        }
 
         let curr_malds = get_mald_count(&ctx, &date, user.id);
 
