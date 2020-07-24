@@ -55,9 +55,9 @@ where
     *malds
 }
 
-pub(crate) fn get_mald_history(context: &Context, user_id: UserId) -> UserHistory {
+pub(crate) fn get_mald_history(context: &Context, user_id: UserId) -> Option<UserHistory> {
     let data = context.data.read();
-    let user_data = data.get::<MaldData>().unwrap();
-    let history = user_data.get(&user_id.0).unwrap();
-    history.to_owned()
+    let user_data = data.get::<MaldData>()?;
+    let history = user_data.get(&user_id.0)?;
+    Some(history.to_owned())
 }

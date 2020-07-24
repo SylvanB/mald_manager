@@ -43,13 +43,17 @@ impl MaldManager {
         message.push(" recent mald history:\n");
 
         let mald_history = get_mald_history(&ctx, user.id);
-        if mald_history.len() == 0 {
-            mald_history.iter().for_each(|hist| {
-                let mald_formatted = format!("{} - {} mald(s)", hist.0, hist.1);
-                message.push_bold_line(mald_formatted);
-            });
-        } else {
-            message.push_bold_line(" is mald free!");
+        
+        match mald_history {
+            Some(h) => {
+                h.iter().for_each(|hist| {
+                    let mald_formatted = format!("{} - {} mald(s)", hist.0, hist.1);
+                    message.push_bold_line(mald_formatted);
+                });
+            },
+            None => {
+                message.push_bold_line(format!("{} is mald free!", user.name));
+            }
         }
 
         if let Err(why) = msg.channel_id.say(&ctx.http, message.build()) {
