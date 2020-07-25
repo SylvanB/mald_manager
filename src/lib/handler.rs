@@ -20,6 +20,9 @@ impl EventHandler for MaldHandler {
             },
             "!mald_hist" => {
                 handle_or_err(MaldManager::mald_history, ctx, msg);
+            },
+            "!mald_help" => {
+                MaldManager::help(&ctx, &msg);
             }
             _ => {}
         }

@@ -82,6 +82,20 @@ impl MaldManager {
         }
     }
 
+    pub fn help(ctx: &Context, msg: &Message) {
+        let message = MessageBuilder::new()
+            .push_line("The command available to me are:")
+            .push_line("`!mald [@User]` - Increments a user's mald level for today.")
+            .push_line("`!demald [@User]` - Decrements a user's mald level for today.")
+            .push_line("`!mald_hist [@User]` - View the user's mald history.")
+            .push_line("`!mald_help` - View this help prompt.")
+            .build();
+
+        if let Err(why) = msg.channel_id.say(&ctx.http, message) {
+            println!("Error sending message: {:?}", why);
+        }
+    }
+
     fn error(ctx: &Context, msg: &Message) {
         let message = MessageBuilder::new()
             .mention(&msg.author)
