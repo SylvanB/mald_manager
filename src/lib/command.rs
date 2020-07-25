@@ -14,8 +14,8 @@ impl MaldManager {
     pub fn new_mald(ctx: &Context, msg: &Message, user: &User) {
         let date = Utc::now().format("%d/%m/%Y").to_string();
         match add_mald(&ctx, &date, user.id) {
-            Ok(_) => {},
-            Err(e) => panic!(e)
+            Ok(_) => {}
+            Err(e) => panic!(e),
         }
 
         let curr_malds = get_mald_count(&ctx, &date, user.id);
@@ -43,14 +43,14 @@ impl MaldManager {
         message.push(" recent mald history:\n");
 
         let mald_history = get_mald_history(&ctx, user.id);
-        
+
         match mald_history {
             Some(h) => {
                 h.iter().for_each(|hist| {
                     let mald_formatted = format!("{} - {} mald(s)", hist.0, hist.1);
                     message.push_bold_line(mald_formatted);
                 });
-            },
+            }
             None => {
                 message.push_bold_line(format!("{} is mald free!", user.name));
             }
@@ -59,5 +59,29 @@ impl MaldManager {
         if let Err(why) = msg.channel_id.say(&ctx.http, message.build()) {
             println!("Error sending message: {:?}", why);
         }
+    }
+
+    fn error(ctx: &Context, msg: &Message) {
+        let message = MessageBuilder::new()
+            .mention(&msg.author)
+            .push(" oi, dickhead, that's not a real command.")
+            .build();
+
+        if let Err(why) = msg.channel_id.say(&ctx.http, message) {
+            println!("Error sending message: {:?}", why);
+        }
+    }
+}
+
+pub(crate) fn handle_or_err(action: fn(&Context, &Message, &User), ctx: Context, msg: Message) {
+    println!("Message content: {}", msg.content);
+    
+    if msg.mentions.len() == 0 {
+        MaldManager::error(&ctx, &msg);
+        return;
+    }
+    
+    for user in &msg.mentions {
+        action(&ctx, &msg, user);
     }
 }

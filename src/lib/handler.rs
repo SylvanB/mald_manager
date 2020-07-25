@@ -1,4 +1,4 @@
-use super::command::MaldManager;
+use super::command::{handle_or_err, MaldManager};
 use crate::lib::{persistance::read_local_mald_history, state::*};
 use serenity::{
     client::{Context, EventHandler},
@@ -10,17 +10,20 @@ pub(crate) struct MaldHandler;
 impl EventHandler for MaldHandler {
     fn message(&self, ctx: Context, msg: Message) {
         let chunks: Vec<&str> = msg.content.split(' ').collect();
-        if chunks[0] == "!mald" {
-            println!("Message content: {}", msg.content);
-            for user in &msg.mentions {
-                MaldManager::new_mald(&ctx, &msg, user);
-            }
-        } else if chunks[0] == "!mald_hist" {
-            println!("Message content: {}", msg.content);
-            for user in &msg.mentions {
-                MaldManager::mald_history(&ctx, &msg, user);
-            }
+        
+        match chunks[0] {
+            "!mald" => {
+                handle_or_err(MaldManager::new_mald, ctx, msg);
+            },
+            // "!demald" => {
+            //     handle_or_err(MaldManager::demald, ctx, msg);
+            // },
+            "!mald_hist" => {
+                handle_or_err(MaldManager::mald_history, ctx, msg);
+            },
+            _ => {}
         }
+
     }
 
     fn ready(&self, ctx: Context, _ready: Ready) {
@@ -30,3 +33,4 @@ impl EventHandler for MaldHandler {
         data.insert::<MaldData>(read_local_mald_history(mald_location).unwrap());
     }
 }
+

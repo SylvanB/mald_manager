@@ -31,7 +31,7 @@ pub(crate) fn read_local_mald_history(
 
 pub(crate) fn write_local_mald_history(ctx: &Context) -> Result<(), HistoryError> {
     let mald_location = env::var("MALD_LOCATION").expect("Expected a token in the environment");
-    
+
     let data = ctx.data.read();
     let malds = data.get::<MaldData>().unwrap();
     let path = Path::new(&mald_location);
