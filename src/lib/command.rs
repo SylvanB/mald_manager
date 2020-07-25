@@ -1,7 +1,4 @@
-use super::{
-    persistance::write_local_mald_history,
-    state::{add_mald, get_mald_count, get_mald_history},
-};
+use super::{persistance::write_local_mald_history, state};
 use chrono::Utc;
 use serenity::{
     client::Context,
@@ -13,12 +10,12 @@ pub(crate) struct MaldManager;
 impl MaldManager {
     pub fn new_mald(ctx: &Context, msg: &Message, user: &User) {
         let date = Utc::now().format("%d/%m/%Y").to_string();
-        match add_mald(&ctx, &date, user.id) {
+        match state::add_mald(&ctx, &date, user.id) {
             Ok(_) => {}
             Err(e) => panic!(e),
         }
 
-        let curr_malds = get_mald_count(&ctx, &date, user.id);
+        let curr_malds = state::get_mald_count(&ctx, &date, user.id);
 
         let mut message = MessageBuilder::new();
 
@@ -42,7 +39,7 @@ impl MaldManager {
         message.mention(user);
         message.push(" recent mald history:\n");
 
-        let mald_history = get_mald_history(&ctx, user.id);
+        let mald_history = state::get_mald_history(&ctx, user.id);
 
         match mald_history {
             Some(h) => {
@@ -55,6 +52,30 @@ impl MaldManager {
                 message.push_bold_line(format!("{} is mald free!", user.name));
             }
         }
+
+        if let Err(why) = msg.channel_id.say(&ctx.http, message.build()) {
+            println!("Error sending message: {:?}", why);
+        }
+    }
+
+    pub fn demald(ctx: &Context, msg: &Message, user: &User) {
+        let date = Utc::now().format("%d/%m/%Y").to_string();
+        let mut message = MessageBuilder::new();
+        message.mention(user);
+
+        match state::remove_mald(&ctx, &date, user.id) {
+            Ok(_) => {}
+            Err(e) => panic!(e),
+        }
+
+        let curr_malds = state::get_mald_count(&ctx, &date, user.id);
+
+        let _ = write_local_mald_history(&ctx);
+
+        message.push(format!(
+            " glad to see you've calmed down, todays mald level is now `{}`!",
+            curr_malds
+        ));
 
         if let Err(why) = msg.channel_id.say(&ctx.http, message.build()) {
             println!("Error sending message: {:?}", why);
@@ -75,12 +96,12 @@ impl MaldManager {
 
 pub(crate) fn handle_or_err(action: fn(&Context, &Message, &User), ctx: Context, msg: Message) {
     println!("Message content: {}", msg.content);
-    
+
     if msg.mentions.len() == 0 {
         MaldManager::error(&ctx, &msg);
         return;
     }
-    
+
     for user in &msg.mentions {
         action(&ctx, &msg, user);
     }

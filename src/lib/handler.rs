@@ -10,20 +10,19 @@ pub(crate) struct MaldHandler;
 impl EventHandler for MaldHandler {
     fn message(&self, ctx: Context, msg: Message) {
         let chunks: Vec<&str> = msg.content.split(' ').collect();
-        
+
         match chunks[0] {
             "!mald" => {
                 handle_or_err(MaldManager::new_mald, ctx, msg);
+            }
+            "!demald" => {
+                handle_or_err(MaldManager::demald, ctx, msg);
             },
-            // "!demald" => {
-            //     handle_or_err(MaldManager::demald, ctx, msg);
-            // },
             "!mald_hist" => {
                 handle_or_err(MaldManager::mald_history, ctx, msg);
-            },
+            }
             _ => {}
         }
-
     }
 
     fn ready(&self, ctx: Context, _ready: Ready) {
@@ -33,4 +32,3 @@ impl EventHandler for MaldHandler {
         data.insert::<MaldData>(read_local_mald_history(mald_location).unwrap());
     }
 }
-
