@@ -12,3 +12,10 @@ chrono = "0.4"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 kankyo = "0.3"
+mongodb = "1.0"
+thiserror = "1.0.20"
+anyhow = "1.0"
+
+[dependencies.rustbreak]
+version = "2"
+features = ["ron_enc"]

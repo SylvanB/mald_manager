@@ -17,10 +17,10 @@ impl EventHandler for MaldHandler {
             }
             "!demald" => {
                 handle_or_err(MaldManager::demald, ctx, msg);
-            },
+            }
             "!mald_hist" => {
                 handle_or_err(MaldManager::mald_history, ctx, msg);
-            },
+            }
             "!mald_help" => {
                 MaldManager::help(&ctx, &msg);
             }

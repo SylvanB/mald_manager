@@ -22,7 +22,7 @@ impl MaldManager {
         message.mention(user);
 
         match curr_malds {
-            1 => message.push(format!(" has malded only once!")),
+            1 => message.push(" has malded only once!".to_string()),
             _ => message.push(format!(" has malded `{}` times!", curr_malds)),
         };
 
