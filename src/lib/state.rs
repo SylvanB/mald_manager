@@ -1,95 +1,112 @@
+use super::db::{DatabaseStorage, UserHistory};
 use serenity::{client::Context, model::id::UserId, prelude::TypeMapKey};
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap},
+    env,
+};
+use thiserror::Error;
 
-pub(crate) type UserHistory = BTreeMap<String, u64>;
+// pub(crate) type UserHistory = BTreeMap<String, u64>;
 
+#[derive(Debug, Error)]
 pub(crate) enum StateError {
-    HistoryFetchError(String),
+    #[error("failed to initialise DB")]
+    FailedToInitialiseDb,
+
+    #[error("Failed to get user history")]
+    FailedToFetchUserHistory,
+
+    #[error("Failed tog update user history")]
+    FailedToUpdateValue,
 }
 
-pub(crate) struct MaldData;
-impl TypeMapKey for MaldData {
-    type Value = HashMap<u64, UserHistory>;
-}
-
-pub(crate) fn add_mald<S>(context: &Context, date: S, user_id: UserId) -> Result<(), StateError>
+pub(crate) fn add_mald<S>(date: S, user_id: UserId) -> Result<(), StateError>
 where
     S: Into<String>,
 {
-    let mut data = context.data.write();
+    let db = DatabaseStorage::new().map_err(|_| StateError::FailedToInitialiseDb)?;
+    let mut user_history = match db.get(user_id.0)
+        .map_err(|_| StateError::FailedToFetchUserHistory) {
+        Ok(uh) => uh,
+        Err(_) =>  {
+            match db.upsert(user_id.0, UserHistory::new(user_id.0))
+            .map_err(|_| StateError::FailedToFetchUserHistory) {
+                Ok(_) => {
+                    db.get(user_id.0).unwrap()
+                },
+                Err(e) => return Err(e)
+            }
+        }
+    };
 
-    // The MaldData should always exist? panicing in this case is expected
-    let mald_data = data
-        .get_mut::<MaldData>()
-        .expect("Failed to get the MaldData.");
-
-    if !mald_data.contains_key(&user_id.0) {
-        let mut user_history = UserHistory::new();
-        user_history.insert(date.into(), 1);
-        mald_data.insert(user_id.0, user_history);
+    let new_value: u64;
+    let date: String = date.into();
+    if let Some(curr_value) = user_history.history.get(&date) {
+        new_value = curr_value + 1;
     } else {
-        let user_history = mald_data
-            .get_mut(&user_id.0)
-            .ok_or(StateError::HistoryFetchError(
-                "Failed to get reference to user's MaldHistory data.".to_string(),
-            ))?;
-        let entry = user_history
-            .get_mut(&date.into())
-            .ok_or(StateError::HistoryFetchError(
-                "Failed to get reference to an entry in the user's MaldHistory.".to_string(),
-            ))?;
-        *entry += 1;
+        new_value = 1;
+    }
+
+    user_history.history.insert(date, new_value);
+
+    match db.upsert(user_id.0, user_history) {
+        Ok(_) => {},
+        Err(_) => return Err(StateError::FailedToUpdateValue)
     }
 
     Ok(())
 }
 
-pub(crate) fn remove_mald<S>(context: &Context, date: S, user_id: UserId) -> Result<(), StateError>
+pub(crate) fn remove_mald<S>(date: S, user_id: UserId) -> Result<(), StateError>
 where
     S: Into<String>,
 {
-    let mut data = context.data.write();
+    let db = DatabaseStorage::new().map_err(|_| StateError::FailedToInitialiseDb)?;
+    let mut user_history = db
+        .get(user_id.0)
+        .map_err(|_| StateError::FailedToFetchUserHistory)?;
 
-    // The MaldData should always exist? panicing in this case is expected
-    let mald_data = data
-        .get_mut::<MaldData>()
-        .expect("Failed to get the MaldData.");
-
-    if !mald_data.contains_key(&user_id.0) {
-        let mut user_history = UserHistory::new();
-        user_history.insert(date.into(), 0);
-        mald_data.insert(user_id.0, user_history);
+    let new_value: u64;
+    let date: String = date.into();
+    if let Some(curr_value) = user_history.history.get(&date) {
+        new_value = curr_value - 1;
     } else {
-        let user_history = mald_data
-            .get_mut(&user_id.0)
-            .ok_or(StateError::HistoryFetchError(
-                "Failed to get reference to user's MaldHistory data.".to_string(),
-            ))?;
-        let entry = user_history
-            .get_mut(&date.into())
-            .ok_or(StateError::HistoryFetchError(
-                "Failed to get reference to an entry in the user's MaldHistory.".to_string(),
-            ))?;
-        *entry -= 1;
+        new_value = 0;
+    }
+
+    user_history.history.insert(date.into(), new_value);
+
+    match db.upsert(user_id.0, user_history) {
+        Ok(_) => {},
+        Err(_) => return Err(StateError::FailedToUpdateValue)
     }
 
     Ok(())
 }
 
-pub(crate) fn get_mald_count<S>(context: &Context, date: S, user_id: UserId) -> u64
+pub(crate) fn get_mald_count<S>(date: S, user_id: UserId) -> Result<u64, StateError>
 where
     S: Into<String>,
 {
-    let data = context.data.read();
-    let user_data = data.get::<MaldData>().unwrap();
-    let history = user_data.get(&user_id.0).unwrap();
-    let malds = history.get(&date.into()).unwrap();
-    *malds
+    let db = DatabaseStorage::new().map_err(|_| StateError::FailedToInitialiseDb)?;
+    let user_history = db
+        .get(user_id.0)
+        .map_err(|_| StateError::FailedToFetchUserHistory)?;
+
+    let curr_value = user_history.history.get(&date.into());
+    let result: u64;
+    if let Some(curr_value) = curr_value {
+        result = *curr_value;
+    } else {
+        result = 0;
+    }
+
+    Ok(result)
 }
 
-pub(crate) fn get_mald_history(context: &Context, user_id: UserId) -> Option<UserHistory> {
-    let data = context.data.read();
-    let user_data = data.get::<MaldData>()?;
-    let history = user_data.get(&user_id.0)?;
-    Some(history.to_owned())
+pub(crate) fn get_mald_history(user_id: UserId) -> Option<UserHistory> {
+    let db = DatabaseStorage::new().ok()?;
+    let user_history = db.get(user_id.0).ok()?;
+
+    Some(user_history)
 }

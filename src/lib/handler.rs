@@ -1,5 +1,5 @@
 use super::command::{handle_or_err, MaldManager};
-use crate::lib::{persistance::read_local_mald_history, state::*};
+use crate::lib::{state::*};
 use serenity::{
     client::{Context, EventHandler},
     model::{channel::Message, prelude::Ready},
@@ -31,7 +31,7 @@ impl EventHandler for MaldHandler {
     fn ready(&self, ctx: Context, _ready: Ready) {
         let mald_location = env::var("MALD_LOCATION").expect("Expected a token in the environment");
 
-        let mut data = ctx.data.write();
-        data.insert::<MaldData>(read_local_mald_history(mald_location).unwrap());
+        // let mut data = ctx.data.write();
+        // data.insert::<MaldData>(read_local_mald_history(mald_location).unwrap());
     }
 }

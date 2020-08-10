@@ -9,7 +9,7 @@ fn main() {
 
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
 
-    let mut client = Client::new(&token, MaldHandler).expect("Err creating client");
+    let mut client = Client::new(&token, MaldHandler {}).expect("Err creating client");
     println!("Logged in MaldManager!");
 
     if let Err(why) = client.start() {

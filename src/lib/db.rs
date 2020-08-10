@@ -1,13 +1,21 @@
 use rustbreak::{deser::Ron, FileDatabase};
 use serde::{ser::SerializeStruct, Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
+use std::{env, path::Path};
 use thiserror::Error;
 
 #[derive(Serialize, Deserialize, Clone)]
-struct UserHistory {
-    id: u64,
-    history: HashMap<String, u64>,
+pub(crate) struct UserHistory {
+    pub id: u64,
+    pub history: HashMap<String, u64>,
+}
+impl UserHistory {
+    pub fn new(id: u64) -> UserHistory {
+        UserHistory {
+            id,
+            history: HashMap::<String, u64>::new(),
+        }
+    }
 }
 
 trait Repository {
@@ -31,27 +39,35 @@ pub(crate) enum DbError {
 
     #[error("couldnt update current value")]
     FailedToUpdateValue,
+
+    #[error("couldnt find DB location on ENV")]
+    FailedToLocateDbEnvLocation,
+
+    #[error("failed to save DB state")]
+    FailedToSaveDatabaseChanges,
 }
 
-struct DatebaseStorage {
+pub(crate) struct DatabaseStorage {
     connection: FileDatabase<HashMap<u64, UserHistory>, Ron>,
 }
 
-impl DatebaseStorage {
-    fn new(location: String) -> Result<DatebaseStorage, DbError> {
-        let path = Path::new(&location);
+impl DatabaseStorage {
+    pub fn new() -> Result<DatabaseStorage, DbError> {
+        let mald_location =
+            env::var("MALD_LOCATION").map_err(|err| DbError::FailedToLocateDbEnvLocation)?;
+        let path = Path::new(&mald_location);
 
-        if !path.exists() {
-            return Err(DbError::DbLocationDoesntExist);
-        }
+        // if !path.exists() {
+        //     return Err(DbError::DbLocationDoesntExist);
+        // }
 
-        let conn = FileDatabase::load_from_path(path)
+        let conn = FileDatabase::load_from_path_or_default(path)
             .map_err(|source| DbError::FailedToInitialise { source })?;
 
-        Ok(DatebaseStorage { connection: conn })
+        Ok(DatabaseStorage { connection: conn })
     }
 
-    fn get(self, id: u64) -> Result<UserHistory, DbError> {
+    pub fn get(&self, id: u64) -> Result<UserHistory, DbError> {
         let result = self.connection.read(|d| d.get(&id).cloned());
 
         // oh god this is gross pls look away
@@ -66,20 +82,26 @@ impl DatebaseStorage {
         })
     }
 
-    fn upsert(self, id: u64, user_history: UserHistory) -> Result<(), DbError> {
+    pub fn upsert(&self, id: u64, user_history: UserHistory) -> Result<(), DbError> {
         let result = self.connection.write(|db| db.insert(id, user_history));
 
         match result {
-            Ok(_) => Ok(()),
+            Ok(_) => match self.connection.save() {
+                Ok(_) => Ok(()),
+                Err(_) => Err(DbError::FailedToSaveDatabaseChanges),
+            },
             Err(_) => Err(DbError::FailedToUpdateValue),
         }
     }
 
-    fn delete(self, id: u64) -> Result<(), DbError> {
+    pub fn delete(&self, id: u64) -> Result<(), DbError> {
         let result = self.connection.write(|db| db.remove(&id));
 
         match result {
-            Ok(_) => Ok(()),
+            Ok(_) => match self.connection.save() {
+                Ok(_) => Ok(()),
+                Err(_) => Err(DbError::FailedToSaveDatabaseChanges),
+            },
             Err(_) => Err(DbError::FailedToUpdateValue),
         }
     }

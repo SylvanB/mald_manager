@@ -1,4 +1,4 @@
-use super::{persistance::write_local_mald_history, state};
+use super::{db, state};
 use chrono::Utc;
 use serenity::{
     client::Context,
@@ -10,12 +10,12 @@ pub(crate) struct MaldManager;
 impl MaldManager {
     pub fn new_mald(ctx: &Context, msg: &Message, user: &User) {
         let date = Utc::now().format("%d/%m/%Y").to_string();
-        match state::add_mald(&ctx, &date, user.id) {
+        match state::add_mald(&date, user.id) {
             Ok(_) => {}
             Err(e) => panic!(e),
         }
 
-        let curr_malds = state::get_mald_count(&ctx, &date, user.id);
+        let curr_malds = state::get_mald_count(&date, user.id).unwrap_or(0 as u64);
 
         let mut message = MessageBuilder::new();
 
@@ -25,8 +25,6 @@ impl MaldManager {
             1 => message.push(" has malded only once!".to_string()),
             _ => message.push(format!(" has malded `{}` times!", curr_malds)),
         };
-
-        let _ = write_local_mald_history(&ctx);
 
         if let Err(why) = msg.channel_id.say(&ctx.http, message.build()) {
             println!("Error sending message: {:?}", why);
@@ -39,11 +37,11 @@ impl MaldManager {
         message.mention(user);
         message.push(" recent mald history:\n");
 
-        let mald_history = state::get_mald_history(&ctx, user.id);
+        let mald_history = state::get_mald_history(user.id);
 
         match mald_history {
-            Some(h) => {
-                h.iter().for_each(|hist| {
+            Some(uh) => {
+                uh.history.iter().for_each(|hist| {
                     let mald_formatted = format!("{} - {} mald(s)", hist.0, hist.1);
                     message.push_bold_line(mald_formatted);
                 });
@@ -63,14 +61,12 @@ impl MaldManager {
         let mut message = MessageBuilder::new();
         message.mention(user);
 
-        match state::remove_mald(&ctx, &date, user.id) {
+        match state::remove_mald(&date, user.id) {
             Ok(_) => {}
             Err(e) => panic!(e),
         }
 
-        let curr_malds = state::get_mald_count(&ctx, &date, user.id);
-
-        let _ = write_local_mald_history(&ctx);
+        let curr_malds = state::get_mald_count(&date, user.id).unwrap_or(0 as u64);
 
         message.push(format!(
             " glad to see you've calmed down, todays mald level is now `{}`!",
