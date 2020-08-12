@@ -1,5 +1,6 @@
 use super::{db, state};
-use chrono::Utc;
+use chrono::{DateTime, Utc, FixedOffset, NaiveDateTime, NaiveDate};
+use rasciigraph::{plot, Config};
 use serenity::{
     client::Context,
     model::{channel::Message, prelude::User},
@@ -41,10 +42,18 @@ impl MaldManager {
 
         match mald_history {
             Some(uh) => {
-                uh.history.iter().for_each(|hist| {
+                let mut malds: Vec<(String, u64)> = uh.history.into_iter().collect();
+                malds.sort_by(|x, y| {
+                    let x1 = MaldManager::parse_date(&x.0).unwrap();
+                    let y1 = MaldManager::parse_date(&y.0).unwrap();
+                    x1.cmp(&y1)
+                });
+                
+                malds.iter().for_each(|hist| {
                     let mald_formatted = format!("{} - {} mald(s)", hist.0, hist.1);
                     message.push_bold_line(mald_formatted);
                 });
+
             }
             None => {
                 message.push_bold_line(format!("{} is mald free!", user.name));
@@ -54,6 +63,10 @@ impl MaldManager {
         if let Err(why) = msg.channel_id.say(&ctx.http, message.build()) {
             println!("Error sending message: {:?}", why);
         }
+    }
+
+    fn parse_date(date: &String) -> Option<NaiveDate> {
+        NaiveDate::parse_from_str(&date, "%d/%m/%Y").ok()
     }
 
     pub fn demald(ctx: &Context, msg: &Message, user: &User) {
