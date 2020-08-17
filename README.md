@@ -36,6 +36,12 @@ DISCORD_TOKEN=<DISCORD_BOT_USER_TOKEN>
 MALD_LOCATION=<WHERE_TO_STORE_MALD_HISTORY>
 ``` 
 
+5. Run the bot with the following command:
+``` bash
+cargo run
+```
+
+You should now have MaldManager running on your discord server!
 
 
 
