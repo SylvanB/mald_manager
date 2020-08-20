@@ -5,12 +5,7 @@ use serenity::{
     model::{channel::Message, prelude::User},
     utils::MessageBuilder,
 };
-use std::{
-    env,
-    error::Error,
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::{env, path::PathBuf, process::Command};
 
 #[derive(Debug)]
 pub(crate) enum CommandErr {
@@ -18,7 +13,7 @@ pub(crate) enum CommandErr {
     FailedToGenerateGraph,
     FilesLocationDoesntExist,
     FailedToGenerateFilePath,
-    FailedToSortHistory
+    FailedToSortHistory,
 }
 
 pub(crate) struct MaldManager;
@@ -83,7 +78,7 @@ impl MaldManager {
 
         message.mention(user);
         message.push(" recent mald history:\n");
-        
+
         let mald_history = state::get_mald_history(user.id)
             .and_then(|hist| {
                 let mut malds: Vec<(String, u64)> = hist.history.into_iter().collect();
@@ -93,20 +88,19 @@ impl MaldManager {
                     x1.cmp(&y1)
                 });
                 Some(malds)
-            }).ok_or(CommandErr::FailedToSortHistory)?;
+            })
+            .ok_or(CommandErr::FailedToSortHistory)?;
 
         let path = MaldManager::generate_graph(&mald_history, &user).unwrap();
         let path = path.as_str();
-        // let path = Path::new(path);
 
-        if &mald_history.len() < &1 {
-            // message.push_bold_line();
-            if let Err(why) = msg.channel_id.send_files(&ctx.http, vec!(path), |m| m.content(format!("{}'s Malds over time!", user.name))) {
-                println!("Error sending message: {:?}", why);
-            }
-        } else {
+        if &mald_history.len() == &0 {
             message.push_bold_line(format!("{} is mald free!", user.name));
-            if let Err(why) = msg.channel_id.send_files(&ctx.http, vec!(path), |m| m.content(format!("{}'s Malds over time!", user.name))) {
+            let _ = msg.channel_id.say(&ctx.http, message.build());
+        } else {
+            if let Err(why) = msg.channel_id.send_files(&ctx.http, vec![path], |m| {
+                m.content(format!("{}'s Malds over time!", user.name))
+            }) {
                 println!("Error sending message: {:?}", why);
             }
         }
@@ -133,8 +127,8 @@ impl MaldManager {
             .output()
             .map_err(|_| CommandErr::FailedToGenerateGraph)?;
 
+        println!("{}", std::str::from_utf8(&command.stderr).unwrap());
         if !command.status.success() {
-            println!("{}", std::str::from_utf8(&command.stderr).unwrap());
             return Err(CommandErr::FailedToGenerateGraph);
         }
 
@@ -178,7 +172,7 @@ impl MaldManager {
         }
     }
 
-    fn error(ctx: &Context, msg: &Message) {
+    pub fn error(ctx: &Context, msg: &Message) {
         let message = MessageBuilder::new()
             .mention(&msg.author)
             .push(" oi, dickhead, that's not a real command.")

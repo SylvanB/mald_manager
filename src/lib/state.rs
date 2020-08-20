@@ -25,16 +25,18 @@ where
     S: Into<String>,
 {
     let db = DatabaseStorage::new().map_err(|_| StateError::FailedToInitialiseDb)?;
-    let mut user_history = match db.get(user_id.0)
-        .map_err(|_| StateError::FailedToFetchUserHistory) {
+    let mut user_history = match db
+        .get(user_id.0)
+        .map_err(|_| StateError::FailedToFetchUserHistory)
+    {
         Ok(uh) => uh,
-        Err(_) =>  {
-            match db.upsert(user_id.0, UserHistory::new(user_id.0))
-            .map_err(|_| StateError::FailedToFetchUserHistory) {
-                Ok(_) => {
-                    db.get(user_id.0).unwrap()
-                },
-                Err(e) => return Err(e)
+        Err(_) => {
+            match db
+                .upsert(user_id.0, UserHistory::new(user_id.0))
+                .map_err(|_| StateError::FailedToFetchUserHistory)
+            {
+                Ok(_) => db.get(user_id.0).unwrap(),
+                Err(e) => return Err(e),
             }
         }
     };
@@ -50,8 +52,8 @@ where
     user_history.history.insert(date, new_value);
 
     match db.upsert(user_id.0, user_history) {
-        Ok(_) => {},
-        Err(_) => return Err(StateError::FailedToUpdateValue)
+        Ok(_) => {}
+        Err(_) => return Err(StateError::FailedToUpdateValue),
     }
 
     Ok(())
@@ -77,8 +79,8 @@ where
     user_history.history.insert(date.into(), new_value);
 
     match db.upsert(user_id.0, user_history) {
-        Ok(_) => {},
-        Err(_) => return Err(StateError::FailedToUpdateValue)
+        Ok(_) => {}
+        Err(_) => return Err(StateError::FailedToUpdateValue),
     }
 
     Ok(())
