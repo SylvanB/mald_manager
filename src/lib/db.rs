@@ -57,10 +57,6 @@ impl DatabaseStorage {
             env::var("MALD_LOCATION").map_err(|err| DbError::FailedToLocateDbEnvLocation)?;
         let path = Path::new(&mald_location);
 
-        // if !path.exists() {
-        //     return Err(DbError::DbLocationDoesntExist);
-        // }
-
         let conn = FileDatabase::load_from_path_or_default(path)
             .map_err(|source| DbError::FailedToInitialise { source })?;
 
